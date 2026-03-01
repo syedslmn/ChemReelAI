@@ -1,0 +1,9 @@
+I am trying to develop an application to be used by 12th grade students to help them understand chemistry lab experiments better.
+This application should have the following features:
+1. A spring boot app that shows a html page where the 12th grade student gives chemistry lab experiment in single line, like - Cutting glass tube and glass rod, Boring a cork
+2. The spring boot application should pass this info to python program running in background.
+3. The python program should be a langchain/langgraph agent that
+  3.1. Takes the input from the spring boot app and pass it to Nova Pro model to generate steps for the given chemistry lab experiment. This is one node.
+  3.2. The generated steps should be passed back to another node that uses Nova Reel model to generate 6s visuals for each step. The generated viuals should be appended to produce one final video.
+  3.3. This thrid node will push this final video back to S3 and return the video URL to the spring boot app.
+4. The spring boot app should then display the video to the student.

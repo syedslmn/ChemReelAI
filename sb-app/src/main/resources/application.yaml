@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: sb-app
+
+server:
+  port: 8080
+
+# Base URL of the Python FastAPI service (no trailing slash)
+python:
+  service:
+    url: http://localhost:5000

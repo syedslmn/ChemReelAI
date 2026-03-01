@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChemLab AI — Class 12 Visual Lab Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <!-- Page header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">&#9879;</span>
+        <span class="logo-text">ChemLab <span class="logo-accent">AI</span></span>
+      </div>
+      <span class="badge">Class 12 &bull; CBSE</span>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-tag">AI-Powered Learning</div>
+    <h1 class="hero-title">See Your Chemistry<br/>Experiments Come Alive</h1>
+    <p class="hero-sub">
+      Describe any Class&nbsp;12 lab experiment and instantly receive a
+      step-by-step AI-generated video walkthrough — built to help you prepare,
+      understand, and excel.
+    </p>
+    <div class="feature-pills">
+      <span class="pill">&#128218; NCERT Aligned</span>
+      <span class="pill">&#127909; Step-by-step Video</span>
+      <span class="pill">&#129514; Safe &amp; Visual</span>
+    </div>
+  </section>
+
+  <!-- Main card -->
+  <main class="card">
+
+    <div class="card-header">
+      <h2 class="card-title">Generate a Lab Video</h2>
+      <p class="card-sub">Type your experiment below — just one line is enough.</p>
+    </div>
+
+    <form id="experiment-form">
+      <label for="experiment-input">Experiment Name</label>
+      <div class="input-wrap">
+        <span class="input-icon">&#128300;</span>
+        <input
+          type="text"
+          id="experiment-input"
+          placeholder="e.g. Titration of HCl with NaOH"
+          autocomplete="off"
+          required
+        />
+      </div>
+
+      <!-- Quick-pick examples -->
+      <p class="examples-label">Try an example:</p>
+      <div class="examples">
+        <button type="button" class="example-chip">Cutting glass tube and glass rod</button>
+        <button type="button" class="example-chip">Boring a cork</button>
+        <button type="button" class="example-chip">Titration of NaOH vs HCl</button>
+        <button type="button" class="example-chip">Chromatography of plant pigments</button>
+      </div>
+
+      <button type="submit" id="submit-btn">
+        <span id="btn-label">&#9654;&#65038; Generate Video</span>
+        <span id="btn-spinner" class="spinner" hidden></span>
+      </button>
+    </form>
+
+    <!-- Status -->
+    <div id="status-box" class="status-box"></div>
+
+    <!-- Video result -->
+    <div id="video-container">
+      <div class="video-header">
+        <span class="video-icon">&#127909;</span>
+        <h3>Your Lab Walkthrough</h3>
+      </div>
+      <video id="video-player" controls></video>
+      <p class="video-note">
+        &#9432; Watch each step carefully before performing the experiment in your lab.
+      </p>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p>Designed for Class 12 students &bull; Powered by Amazon Bedrock Nova</p>
+  </footer>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
