@@ -47,6 +47,8 @@ def generate_procedure(state: ExperimentState) -> dict:
         steps: list[str] = json.loads(text)
         logger.info("Nova Pro returned %d steps for experiment: '%s'",
                     len(steps), state["experiment_name"])
+        for i, step in enumerate(steps, 1):
+            logger.info("  Step %d: %s", i, step)
         return {"procedure_steps": steps}
 
     except Exception as exc:

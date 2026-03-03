@@ -9,7 +9,7 @@ _REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
 bedrock = boto3.client("bedrock-runtime", region_name=_REGION)
 s3 = boto3.client("s3", region_name=_REGION)
 
-S3_BUCKET = os.environ["S3_BUCKET_NAME"]
+S3_BUCKET = "nova-hackathon-videos"
 NOVA_PRO_MODEL_ID = "amazon.nova-pro-v1:0"
 NOVA_REEL_MODEL_ID = "amazon.nova-reel-v1:0"
 PRESIGNED_URL_EXPIRY = 3600  # seconds
