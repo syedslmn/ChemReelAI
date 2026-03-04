@@ -1,14 +1,18 @@
 const POLL_INTERVAL_MS = 4000;
 const MAX_POLLS = 150;  // 10 minutes max
 
-const form           = document.getElementById('experiment-form');
-const inputEl        = document.getElementById('experiment-input');
-const submitBtn      = document.getElementById('submit-btn');
-const btnLabel       = document.getElementById('btn-label');
-const btnSpinner     = document.getElementById('btn-spinner');
-const statusBox      = document.getElementById('status-box');
-const videoContainer = document.getElementById('video-container');
-const videoPlayer    = document.getElementById('video-player');
+const form            = document.getElementById('experiment-form');
+const inputEl         = document.getElementById('experiment-input');
+const submitBtn       = document.getElementById('submit-btn');
+const btnLabel        = document.getElementById('btn-label');
+const btnSpinner      = document.getElementById('btn-spinner');
+const statusBox       = document.getElementById('status-box');
+const videoContainer  = document.getElementById('video-container');
+const videoPlayer     = document.getElementById('video-player');
+const videoPlaceholder = document.getElementById('video-placeholder');
+const stepsContainer    = document.getElementById('steps-container');
+const stepsList         = document.getElementById('steps-list');
+const stepsPlaceholder  = document.getElementById('steps-placeholder');
 
 // Fill input when an example chip is clicked
 document.querySelectorAll('.example-chip').forEach(chip => {
@@ -21,6 +25,18 @@ document.querySelectorAll('.example-chip').forEach(chip => {
 function showStatus(message, type) {
   statusBox.className = 'status-box ' + type;
   statusBox.textContent = message;
+}
+
+function renderSteps(steps) {
+  if (!steps || steps.length === 0) return;
+  stepsPlaceholder.style.display = 'none';
+  stepsContainer.style.display = 'flex';
+  stepsList.innerHTML = '';
+  steps.forEach(step => {
+    const li = document.createElement('li');
+    li.textContent = step;
+    stepsList.appendChild(li);
+  });
 }
 
 function setFormEnabled(enabled) {
@@ -46,6 +62,8 @@ function startPolling(jobId) {
       const res  = await fetch('/api/status/' + jobId);
       const data = await res.json();
 
+      renderSteps(data.procedure_steps);
+
       if (data.status === 'pending') {
         showStatus('Your request is queued...', 'info');
       } else if (data.status === 'processing') {
@@ -53,6 +71,7 @@ function startPolling(jobId) {
       } else if (data.status === 'completed') {
         clearInterval(intervalId);
         showStatus('Your video is ready!', 'success');
+        videoPlaceholder.style.display = 'none';
         videoPlayer.src = data.video_url;
         videoContainer.style.display = 'block';
         setFormEnabled(true);
@@ -74,7 +93,11 @@ form.addEventListener('submit', async (event) => {
   if (!experimentName) return;
 
   videoContainer.style.display = 'none';
+  videoPlaceholder.style.display = '';
   videoPlayer.src = '';
+  stepsContainer.style.display = 'none';
+  stepsPlaceholder.style.display = '';
+  stepsList.innerHTML = '';
   setFormEnabled(false);
   showStatus('Submitting your experiment...', 'info');
 

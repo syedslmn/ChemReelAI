@@ -11,24 +11,28 @@ logger = logging.getLogger(__name__)
 
 def generate_procedure(state: ExperimentState) -> dict:
     """
-    Node 1 — Calls Amazon Bedrock Nova Pro to produce an ordered list of
-    procedure steps for the given chemistry experiment.
-
-    Returns up to 8 steps, each short enough to describe a 6-second action.
+    Node 1 — Calls Amazon Bedrock Nova Pro to convert the experiment into
+    3–6 visual action scenes, each suitable for a 6-second video clip.
     """
     prompt = (
         f"You are an expert chemistry teacher for Class 12 students.\n"
-        f"Write a clear, step-by-step laboratory procedure for the experiment: "
+        f"Convert the following chemistry lab experiment into visual action scenes: "
         f'"{state["experiment_name"]}".\n\n'
         f"Rules:\n"
         f"- Return ONLY a valid JSON array of strings.\n"
-        f"- Each string is one distinct step.\n"
-        f"- Each step must describe a single observable action that can be "
-        f"illustrated in a 6-second video clip.\n"
-        f"- Maximum 8 steps.\n"
+        f"- Convert the experiment into visual action scenes.\n"
+        f"- Each scene must represent one continuous visual action.\n"
+        f"- Do NOT include preparation or cleanup.\n"
+        f"- Merge steps that occur in the same physical position into one scene.\n"
+        f"- Each scene must be suitable for a 6-second video.\n"
+        f"- Include 3–6 scenes depending on experiment complexity.\n"
+        f"- Maintain a consistent lab environment, same student, same lighting, "
+        f"same camera angle across all scenes.\n"
+        f"- Do NOT include narration.\n"
         f"- No markdown, no extra text outside the JSON array.\n\n"
-        f'Example: ["Fill the burette with 0.1M NaOH.", '
-        f'"Add 3 drops of phenolphthalein to the flask."]'
+        f'Example: ["A student in a chemistry lab holds a glass tube over a Bunsen burner flame, '
+        f'slowly rotating it as the glass begins to glow red.", '
+        f'"The student gently bends the heated glass tube to form an angle."]'
     )
 
     try:

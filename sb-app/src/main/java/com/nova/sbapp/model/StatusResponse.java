@@ -1,6 +1,7 @@
 package com.nova.sbapp.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 public class StatusResponse {
 
@@ -11,6 +12,9 @@ public class StatusResponse {
 
     @JsonProperty("error_message")
     private String errorMessage;
+
+    @JsonProperty("procedure_steps")
+    private List<String> procedureSteps;
 
     public StatusResponse() {}
 
@@ -36,5 +40,13 @@ public class StatusResponse {
 
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
+    }
+
+    public List<String> getProcedureSteps() {
+        return procedureSteps;
+    }
+
+    public void setProcedureSteps(List<String> procedureSteps) {
+        this.procedureSteps = procedureSteps;
     }
 }

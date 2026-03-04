@@ -46,6 +46,7 @@ class StatusResponse(BaseModel):
     status: JobStatus
     video_url: Optional[str] = None
     error_message: Optional[str] = None
+    procedure_steps: list[str] = []
 
 
 # ---------------------------------------------------------------------------
@@ -111,26 +112,46 @@ def _run_agent(job_id: str, experiment_name: str) -> None:
     }
 
     try:
-        final_state: ExperimentState = chemistry_graph.invoke(initial_state)
+        # Stream the graph so we can push procedure_steps to the job store
+        # as soon as Node 1 finishes (while Node 2 is still running).
+        final_state = initial_state
+        for update in chemistry_graph.stream(initial_state):
+            # Each update is {node_name: partial_state_dict}
+            for _node_name, partial in update.items():
+                final_state = {**final_state, **partial}
+
+            # If procedure_steps just became available, push them to the job
+            steps = final_state.get("procedure_steps", [])
+            if steps:
+                with _jobs_lock:
+                    _jobs[job_id] = StatusResponse(
+                        status=JobStatus.PROCESSING,
+                        procedure_steps=steps,
+                    )
 
         if final_state.get("error"):
             logger.error("Job %s failed (agent error): %s", job_id, final_state["error"])
             result = StatusResponse(
                 status=JobStatus.FAILED,
                 error_message=final_state["error"],
+                procedure_steps=final_state.get("procedure_steps", []),
             )
         else:
             logger.info("Job %s completed successfully — video_url: %s", job_id, final_state["video_url"])
             result = StatusResponse(
                 status=JobStatus.COMPLETED,
                 video_url=final_state["video_url"],
+                procedure_steps=final_state.get("procedure_steps", []),
             )
 
     except Exception as exc:
         logger.error("Job %s failed (unhandled exception): %s", job_id, exc, exc_info=True)
+        # Try to preserve any steps gathered before the failure
+        steps = final_state.get("procedure_steps", []) if final_state else []
         result = StatusResponse(
             status=JobStatus.FAILED,
             error_message=str(exc),
+            procedure_steps=steps,
         )
 
     with _jobs_lock:
