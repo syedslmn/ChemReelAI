@@ -12,6 +12,18 @@ from .clients import NOVA_REEL_MODEL_ID, REEL_POLL_INTERVAL, S3_BUCKET, bedrock,
 
 logger = logging.getLogger(__name__)
 
+# ── TEMP FLAG: set True to skip Nova Reel and reuse existing S3 clips ────
+USE_MOCK_CLIPS = False
+_MOCK_RUN_ID = "08ee89a7-34f6-46b6-9d5c-4e2447551880"
+_MOCK_CLIP_KEYS = [
+    f"tmp/{_MOCK_RUN_ID}/clip_00/268a1fyq9vzy/output.mp4",
+    f"tmp/{_MOCK_RUN_ID}/clip_01/hy18wo1l52wy/output.mp4",
+    f"tmp/{_MOCK_RUN_ID}/clip_02/ljmj8cu9xx4q/output.mp4",
+    f"tmp/{_MOCK_RUN_ID}/clip_03/k1nw3997def5/output.mp4",
+    f"tmp/{_MOCK_RUN_ID}/clip_04/wofiuduxjpr4/output.mp4",
+    f"tmp/{_MOCK_RUN_ID}/clip_05/1dqujznq833a/output.mp4",
+]
+
 
 def generate_clips(state: ExperimentState) -> dict:
     """
@@ -20,6 +32,9 @@ def generate_clips(state: ExperimentState) -> dict:
       2. Poll ALL invocations until every one completes or fails.
       3. Download all clips from S3 and concatenate with ffmpeg.
       4. Upload the final video to S3.
+
+    When USE_MOCK_CLIPS is True, skips Nova Reel entirely and reuses
+    existing clips from S3 for testing.
     """
     steps = state["procedure_steps"]
     run_id = str(uuid.uuid4())
@@ -28,53 +43,71 @@ def generate_clips(state: ExperimentState) -> dict:
     local_clip_paths: list[str] = []
 
     try:
-        # ── Phase 1: Submit all jobs in parallel ─────────────────────────
-        logger.info("Starting video clip generation — %d steps, run_id: %s", len(steps), run_id)
-        invocations: list[dict] = []  # {arn, step_index, clip_prefix}
+        if USE_MOCK_CLIPS:
+            # ── MOCK MODE: download existing clips from S3 ─────────────
+            logger.info("MOCK MODE — skipping Nova Reel, reusing %d existing clips from run %s",
+                        len(_MOCK_CLIP_KEYS), _MOCK_RUN_ID)
+            # Use as many mock clips as we have steps (cycle if needed)
+            for i in range(len(steps)):
+                s3_key = _MOCK_CLIP_KEYS[i % len(_MOCK_CLIP_KEYS)]
+                local_path = str(work_dir / f"clip_{i:02d}.mp4")
 
-        for i, step in enumerate(steps):
-            clip_prefix = f"tmp/{run_id}/clip_{i:02d}"
+                logger.info("Downloading mock clip %d/%d from S3: s3://%s/%s",
+                            i + 1, len(steps), S3_BUCKET, s3_key)
+                s3.download_file(S3_BUCKET, s3_key, local_path)
 
-            reel_prompt = (
-                f"6-second realistic laboratory video.\n\n"
-                f"Modern chemistry lab, wooden lab bench, neutral white lighting, "
-                f"fixed camera angle at table height, same student wearing white "
-                f"lab coat and safety goggles.\n\n"
-                f"Action: {step}"
-            )
+                clip_s3_keys.append(s3_key)
+                local_clip_paths.append(local_path)
+        else:
+            # ── REAL MODE: call Nova Reel ──────────────────────────────
+            # Phase 1: Submit all jobs in parallel
+            logger.info("Starting video clip generation — %d steps, run_id: %s", len(steps), run_id)
+            invocations: list[dict] = []  # {arn, step_index, clip_prefix}
 
-            logger.info("Submitting step %d/%d to Nova Reel (%s): '%s'",
-                        i + 1, len(steps), NOVA_REEL_MODEL_ID, reel_prompt)
-            arn = _submit_with_retry(reel_prompt, clip_prefix, i)
-            logger.info("Nova Reel invocation started — step %d/%d, ARN: %s",
-                        i + 1, len(steps), arn)
-            invocations.append({"arn": arn, "step_index": i, "clip_prefix": clip_prefix})
+            for i, step in enumerate(steps):
+                clip_prefix = f"tmp/{run_id}/clip_{i:02d}"
 
-            # Stagger submissions to avoid Bedrock throttling
-            if i < len(steps) - 1:
-                time.sleep(2)
+                reel_prompt = (
+                    f"6-second realistic laboratory video.\n\n"
+                    f"Modern chemistry lab, wooden lab bench, neutral white lighting, "
+                    f"fixed camera angle at table height, same student wearing white "
+                    f"lab coat and safety goggles.\n\n"
+                    f"Action: {step}"
+                )
 
-        logger.info("All %d Nova Reel jobs submitted. Invocations: %s", len(steps), invocations)
-        logger.info("Waiting for completion...")
+                logger.info("Submitting step %d/%d to Nova Reel (%s): '%s'",
+                            i + 1, len(steps), NOVA_REEL_MODEL_ID, reel_prompt)
+                arn = _submit_with_retry(reel_prompt, clip_prefix, i)
+                logger.info("Nova Reel invocation started — step %d/%d, ARN: %s",
+                            i + 1, len(steps), arn)
+                invocations.append({"arn": arn, "step_index": i, "clip_prefix": clip_prefix})
 
-        # ── Phase 2: Poll all jobs until every one finishes ──────────────
-        _wait_for_all(invocations, len(steps))
-        logger.info("All %d Nova Reel jobs completed successfully.", len(steps))
+                # Stagger submissions to avoid Bedrock throttling
+                if i < len(steps) - 1:
+                    time.sleep(2)
 
-        # ── Phase 3: Download clips and concatenate ──────────────────────
-        for inv in invocations:
-            i = inv["step_index"]
-            s3_key = _find_clip_key(inv["clip_prefix"], i, len(steps))
-            local_path = str(work_dir / f"clip_{i:02d}.mp4")
+            logger.info("All %d Nova Reel jobs submitted. Invocations: %s", len(steps), invocations)
+            logger.info("Waiting for completion...")
 
-            logger.info("Downloading clip %d/%d from S3: s3://%s/%s",
-                        i + 1, len(steps), S3_BUCKET, s3_key)
-            s3.download_file(S3_BUCKET, s3_key, local_path)
-            logger.info("Clip %d/%d downloaded to %s", i + 1, len(steps), local_path)
+            # Phase 2: Poll all jobs until every one finishes
+            _wait_for_all(invocations, len(steps))
+            logger.info("All %d Nova Reel jobs completed successfully.", len(steps))
 
-            clip_s3_keys.append(s3_key)
-            local_clip_paths.append(local_path)
+            # Phase 3: Download clips
+            for inv in invocations:
+                i = inv["step_index"]
+                s3_key = _find_clip_key(inv["clip_prefix"], i, len(steps))
+                local_path = str(work_dir / f"clip_{i:02d}.mp4")
 
+                logger.info("Downloading clip %d/%d from S3: s3://%s/%s",
+                            i + 1, len(steps), S3_BUCKET, s3_key)
+                s3.download_file(S3_BUCKET, s3_key, local_path)
+                logger.info("Clip %d/%d downloaded to %s", i + 1, len(steps), local_path)
+
+                clip_s3_keys.append(s3_key)
+                local_clip_paths.append(local_path)
+
+        # ── Common: concatenate with title cards and upload ────────────
         logger.info("All %d clips downloaded. Concatenating with ffmpeg...", len(steps))
         final_video_key = _concat_and_upload(local_clip_paths, steps, run_id)
 
